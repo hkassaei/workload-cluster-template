@@ -1,0 +1,1 @@
+In order to create a claim for a Kubernetes cluster, simply copy a cliam fro here; e.g. workload-cluster-1.yaml, rename it to the desired name, and change the configuration parameters of the cluster as needed.

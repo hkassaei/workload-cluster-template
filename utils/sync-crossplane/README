@@ -1,0 +1,1 @@
+In order to have Flux reconcile all Crossplane artifacts in a Kubernetes cluster, simply drop the crossplane.yaml file in the cluster directory where Flux is bootstrapped.

@@ -1,0 +1,13 @@
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta1
+kind: ImagePolicy
+metadata:
+  name: edc-demo-app
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: edc-demo-app
+  policy:
+    semver:
+      range: '>=0.0.0 <1.0.0'
+

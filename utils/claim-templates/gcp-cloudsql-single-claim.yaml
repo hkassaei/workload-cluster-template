@@ -1,0 +1,17 @@
+apiVersion: database.platform.com/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: cloudsql-postgresql-instance
+  namespace: default
+spec:
+  parameters:
+    instanceName: "postgres-master-single"
+    storageSize: 20
+    flavor: "xsmall"
+    version: "13"
+  compositionSelector:
+    matchLabels:
+      provider: gcp
+      availability: single-master
+  writeConnectionSecretToRef:
+    name: db-conn-cloudsql
