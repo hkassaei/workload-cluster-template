@@ -1,0 +1,12 @@
+apiVersion: gcp.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: gcp-provider
+spec:
+  projectID: gcprdpscdpochcppaasdev01-c304 # replace this with your own gcp project id
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: gcp-creds
+      key: creds

@@ -1,0 +1,138 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xpostgresqlinstances.gcp.database.platform.com
+  labels:
+    provider: gcp
+    availability: master-replica
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  compositeTypeRef:
+    apiVersion: database.platform.com/v1alpha1
+    kind: XPostgreSQLInstance
+  resources:
+    - name: cloudsqlinstancemaster
+      base:
+        apiVersion: database.gcp.crossplane.io/v1beta1
+        kind: CloudSQLInstance
+        spec:
+          forProvider:
+            databaseVersion: POSTGRES_9_6
+            region: us-central1
+            settings:
+              tier: db-custom-1-3840
+              dataDiskType: PD_SSD
+              ipConfiguration:
+                ipv4Enabled: true
+                authorizedNetworks:
+                  - value: "0.0.0.0/0"
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+          providerConfigRef:
+            name: provider-gcp-config
+      patches:
+        - fromFieldPath: "spec.parameters.providerConfigName"
+          toFieldPath: "spec.providerConfigRef.name"
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.storageSize"
+          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+        - fromFieldPath: "spec.parameters.version"
+          toFieldPath: "spec.forProvider.databaseVersion"
+          transforms:
+            - type: map
+              map: # more info: https://cloud.google.com/sql/docs/db-versions
+                9.6: "POSTGRES_9_6"  # PostgreSQL 9.6
+                10: "POSTGRES_10"  # PostgreSQL 10
+                11: "POSTGRES_11" # PostgreSQL 11
+                12: "POSTGRES_12" # PostgreSQL 12
+                13: "POSTGRES_13" # PostgreSQL 13
+                14: "POSTGRES_14" # PostgreSQL 14
+        - fromFieldPath: "spec.parameters.instanceName"
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+        - fromFieldPath: "spec.parameters.flavor"
+          toFieldPath: "spec.forProvider.settings.tier"
+          transforms:
+            - type: map
+              map: # more info: https://aws.amazon.com/rds/instance-types/
+                xsmall: "db-custom-2-7680"  # 2 vCPUs, 8 GB memory
+                small: "db-custom-4-15360"  # 4 vCPUs, 16 GB memory
+                medium: "db-custom-8-30720" # 8 vCPUs, 32 GB memory
+                large: "db-custom-16-61440" # 16 vCPUs, 64 GB memory
+                xlarge: "db-custom-32-122880" # 32 vCPUs, 128 GB memory
+                xxlarge: "db-custom-64-245760" # 64 vCPUs, 256 GB memory
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint
+        - type: FromValue
+          name: port
+          value: "5432"
+    - name: cloudsqlinstancereplica
+      base:
+        apiVersion: database.gcp.crossplane.io/v1beta1
+        kind: CloudSQLInstance
+        spec:
+          forProvider:
+            databaseVersion: POSTGRES_9_6
+            region: us-central1
+            masterInstanceName: masterinstance
+            settings:
+              tier: db-custom-1-3840
+              dataDiskType: PD_SSD
+              ipConfiguration:
+                ipv4Enabled: true
+                authorizedNetworks:
+                  - value: "0.0.0.0/0"
+          providerConfigRef:
+            name: provider-gcp-config
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+      patches:
+        - fromFieldPath: "spec.parameters.providerConfigName"
+          toFieldPath: "spec.providerConfigRef.name"
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql-replica"
+        - fromFieldPath: "spec.parameters.storageSize"
+          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+        - fromFieldPath: "spec.parameters.version"
+          toFieldPath: "spec.forProvider.databaseVersion"
+          transforms:
+            - type: map
+              map: # more info: https://cloud.google.com/sql/docs/db-versions
+                9.6: "POSTGRES_9_6"  # PostgreSQL 9.6
+                10: "POSTGRES_10"  # PostgreSQL 10
+                11: "POSTGRES_11" # PostgreSQL 11
+                12: "POSTGRES_12" # PostgreSQL 12
+                13: "POSTGRES_13" # PostgreSQL 13
+                14: "POSTGRES_14" # PostgreSQL 14
+        - fromFieldPath: "spec.parameters.instanceName"
+          toFieldPath: "spec.forProvider.masterInstanceName"
+        - fromFieldPath: "spec.parameters.flavor"
+          toFieldPath: "spec.forProvider.settings.tier"
+          transforms:
+            - type: map
+              map: # more info: https://aws.amazon.com/rds/instance-types/
+                xsmall: "db-custom-2-7680"  # 2 vCPUs, 8 GB memory
+                small: "db-custom-4-15360"  # 4 vCPUs, 16 GB memory
+                medium: "db-custom-8-30720" # 8 vCPUs, 32 GB memory
+                large: "db-custom-16-61440" # 16 vCPUs, 64 GB memory
+                xlarge: "db-custom-32-122880" # 32 vCPUs, 128 GB memory
+                xxlarge: "db-custom-64-245760" # 64 vCPUs, 256 GB memory
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint
+        - type: FromValue
+          name: port
+          value: "5432"
+

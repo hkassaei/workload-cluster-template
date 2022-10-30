@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+  name: crossplane-gcp-provider-config
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: crossplane-gcp-provider
+  interval: 1m0s
+  path: ./infra-blueprints/deployment-artifacts/crossplane-gcp-provider-config
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+#  healthChecks:
+#  - apiVersion: gcp.crossplane.io/v1beta1
+#    kind: ProviderConfig
+#    name: gcp-provider
+#  validation: client
+#  timeout: 2m
