@@ -2,8 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- edc-demo-app.yaml
-- service_account.yaml
-- gcp-cloudsql-single-claim.yaml
+#- edc-demo-app.yaml
+#- service_account.yaml
+#- gcp-cloudsql-single-claim.yaml
 
-# To deploy the application, copy the above 3 files from app blueprint into this directory and make any necessary changes via a kustomize overlay
+# To deploy the application, uncomment the lines above
