@@ -4,24 +4,19 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 
+	// For a full list of sql database drivers in Go, refer to: https://github.com/golang/go/wiki/SQLDrivers
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 // global db connection pool (using a global variable since it's a simple PoC)
 var db *sql.DB
-
-type Album struct {
-	ID     int64
-	Title  string
-	Artist string
-	Price  float32
-}
 
 func initDB(dbConnection string) error {
 
@@ -37,6 +32,20 @@ func initDB(dbConnection string) error {
 	return db.Ping()
 }
 
+func createDatabase(dbName string) error {
+	if _, err := db.Exec("create database " + dbName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createTable() error {
+	if _, err := db.Exec(`create table shortened_urls (	id text primary key, url text not null)`); err != nil {
+		return err
+	}
+	return nil
+}
+
 // renderJSON renders 'v' as JSON and writes it as a response into w.
 func renderJSON(w http.ResponseWriter, v interface{}) {
 	js, err := json.Marshal(v)
@@ -48,41 +57,48 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 	w.Write(js)
 }
 
-func getAllAlbumsHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("handling get all albums at %s\n", req.URL.Path)
-	allAlbums, _ := getAllAlbums()
-	renderJSON(w, allAlbums)
-
-}
-
-func getAllAlbums() ([]Album, error) {
-
-	// using the global connection pool 'db'
-	rows, err := db.Query("SELECT * FROM album")
-	if rows == nil {
-		log.Print("zero rows read")
-	}
-	if err != nil {
-		//fmt.Errorf("DB.Query: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
-	var albums []Album
-	for rows.Next() {
-		var alb Album
-		if err := rows.Scan(&alb.ID, &alb.Title, &alb.Artist, &alb.Price); err != nil {
-			return nil, err
-		}
-		albums = append(albums, alb)
-
-	}
-	return albums, nil
-}
-
 func getVersion(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Getting version\n")
 	version := "0.2.2"
 	renderJSON(w, version)
+}
+
+func getUrlHandler(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	var url string
+	err := db.QueryRow("select url from shortened_urls where id=$1", vars["url"]).Scan(&url)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, req, url, http.StatusSeeOther)
+}
+
+func putUrlHandler(w http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["url"]
+	var url string
+	if body, err := io.ReadAll(req.Body); err == nil {
+		url = string(body)
+	} else {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := db.Exec(`insert into shortened_urls(id, url) values ($1, $2)
+	on conflict (id) do update set url =excluded.url`, id, url); err == nil {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+func deleteUrlHandler(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	if _, err := db.Exec("delete from shortened_urls where id=$1", vars["url"]); err == nil {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 func main() {
@@ -94,19 +110,35 @@ func main() {
 		dbName    = "demo_app_db"
 	)
 
-	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s sslmode=disable",
-		dbTCPHost, dbUser, dbPwd, dbPort, dbName)
+	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s sslmode=disable",
+		dbTCPHost, dbUser, dbPwd, dbPort)
+	log.Println("database url:" + dbURI)
 
-	// initialize connection pool
-	err := initDB(dbURI)
-	if err != nil {
+	// initialize connection pool without the database name
+	if err := initDB(dbURI); err != nil {
+		log.Fatal(err)
+	} else if err := createDatabase(dbName); err != nil {
+		log.Fatal(err)
+	}
+	db.Close()
+
+	dbURI = fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s sslmode=disable",
+		dbTCPHost, dbUser, dbPwd, dbPort, dbName)
+	log.Println("database url:" + dbURI)
+
+	// initialize connection pool, this time with the database name
+	if err := initDB(dbURI); err != nil {
+		log.Fatal(err)
+	} else if err := createTable(); err != nil {
 		log.Fatal(err)
 	}
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
-	router.HandleFunc("/albums", getAllAlbumsHandler).Methods("GET")
 	router.HandleFunc("/version", getVersion).Methods("GET")
+	router.HandleFunc("/{url}", getUrlHandler).Methods("GET")
+	router.HandleFunc("/{url}", putUrlHandler).Methods("PUT")
+	router.HandleFunc("/{url}", deleteUrlHandler).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8081", router))
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
