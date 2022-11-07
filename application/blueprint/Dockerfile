@@ -1,4 +1,4 @@
-# Build the manager binary
+# Build the demo-app binary
 FROM golang:1.19 as builder
 
 WORKDIR /workspace
