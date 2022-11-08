@@ -59,7 +59,7 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 
 func getVersion(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Getting version\n")
-	version := "0.2.2"
+	version := "0.2.4"
 	renderJSON(w, version)
 }
 
