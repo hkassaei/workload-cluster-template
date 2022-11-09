@@ -36,7 +36,7 @@ spec:
       - name: cloud-sql-proxy
         # It is recommended to use the latest version of the Cloud SQL proxy
         # Make sure to update on a regular schedule!
-        image: gcr.io/cloudsql-docker/gce-proxy:1.30.1
+        image: gcr.io/cloudsql-docker/gce-proxy:1.33.0
         command:
         - "/cloud_sql_proxy"
         # If connecting from a VPC-native GKE cluster, you can use the
@@ -64,11 +64,11 @@ spec:
             # The proxy's memory use scales linearly with the number of active
             # connections. Fewer open connections will use less memory. Adjust
             # this value based on your application's requirements.
-            memory: "1Gi"
+            memory: "256Mi"
             # The proxy's CPU use scales linearly with the amount of IO between
             # the database and the application. Adjust this value based on your
             # application's requirements.
-            cpu: "1"
+            cpu: "250m"
             # [END cloud_sql_proxy_k8s_container]
       imagePullSecrets:
       - name: ghcr-creds
