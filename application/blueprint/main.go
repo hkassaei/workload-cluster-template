@@ -18,6 +18,11 @@ import (
 // global db connection pool (using a global variable since it's a simple PoC)
 var db *sql.DB
 
+type shortenedUrl struct {
+	Id  string `json:"id"`
+	Url string `json:"url"`
+}
+
 func initDB(dbConnection string) error {
 
 	var err error
@@ -33,13 +38,33 @@ func initDB(dbConnection string) error {
 }
 
 func createDatabase(dbName string) error {
+	var name string
+	err := db.QueryRow("select datname from pg_catalog.pg_database where datname=$1", dbName).Scan(&name)
+	if err != nil {
+		return err
+
+	} else if name == dbName {
+		fmt.Printf("database %s already exists, skipping creation.\n", name)
+		return nil
+	}
+
 	if _, err := db.Exec("create database " + dbName); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createTable() error {
+func createTable(tableName string) error {
+	var name string
+	err := db.QueryRow("select table_name from information_schema.tables where table_name=$1", tableName).Scan(&name)
+	if err != nil {
+		return err
+
+	} else if name == tableName {
+		fmt.Printf("table %s already exists, skipping creation.\n", tableName)
+		return nil
+	}
+
 	if _, err := db.Exec(`create table shortened_urls (	id text primary key, url text not null)`); err != nil {
 		return err
 	}
@@ -59,7 +84,7 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 
 func getVersion(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Getting version\n")
-	version := "0.2.4"
+	version := "0.2.7"
 	renderJSON(w, version)
 }
 
@@ -101,6 +126,38 @@ func deleteUrlHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func getRootHandler(w http.ResponseWriter, req *http.Request) {
+	rows, err := db.Query("select * from shortened_urls")
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, http.StatusText(500), 500)
+	}
+	defer rows.Close()
+
+	shortenedUrls := make([]shortenedUrl, 0)
+	for rows.Next() {
+		var shUrl shortenedUrl
+		err := rows.Scan(&shUrl.Id, &shUrl.Url)
+		if err != nil {
+			log.Fatal(err)
+			http.Error(w, http.StatusText(500), 500)
+		}
+		shortenedUrls = append(shortenedUrls, shUrl)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Fatal(err)
+		http.Error(w, http.StatusText(500), 500)
+	}
+
+	for _, shUrl := range shortenedUrls {
+		fmt.Printf("%s , %s\n", shUrl.Id, shUrl.Url)
+	}
+
+	renderJSON(w, shortenedUrls)
+
+}
+
 func main() {
 	var (
 		dbUser    = os.Getenv("DB_USER")
@@ -108,6 +165,7 @@ func main() {
 		dbTCPHost = "127.0.0.1" // since using cloudsql proxy
 		dbPort    = "5432"
 		dbName    = "demo_app_db"
+		tableName = "shortened_urls"
 	)
 
 	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s sslmode=disable",
@@ -127,13 +185,14 @@ func main() {
 	// initialize connection pool, this time with the database name
 	if err := initDB(dbURI); err != nil {
 		log.Fatal(err)
-	} else if err := createTable(); err != nil {
+	} else if err := createTable(tableName); err != nil {
 		log.Fatal(err)
 	}
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
 	router.HandleFunc("/version", getVersion).Methods("GET")
+	router.HandleFunc("/", getRootHandler).Methods("GET")
 	router.HandleFunc("/{url}", getUrlHandler).Methods("GET")
 	router.HandleFunc("/{url}", putUrlHandler).Methods("PUT")
 	router.HandleFunc("/{url}", deleteUrlHandler).Methods("DELETE")
