@@ -112,7 +112,6 @@ func main() {
 
 	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s sslmode=disable",
 		dbTCPHost, dbUser, dbPwd, dbPort)
-	log.Println("database url:" + dbURI)
 
 	// initialize connection pool without the database name
 	if err := initDB(dbURI); err != nil {
@@ -124,7 +123,6 @@ func main() {
 
 	dbURI = fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s sslmode=disable",
 		dbTCPHost, dbUser, dbPwd, dbPort, dbName)
-	log.Println("database url:" + dbURI)
 
 	// initialize connection pool, this time with the database name
 	if err := initDB(dbURI); err != nil {
