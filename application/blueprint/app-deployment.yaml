@@ -18,7 +18,7 @@ spec:
       serviceAccountName: edc-demo-app-sa
       containers:
       - name: edc-demo-app
-        image: ghcr.io/hkassaei/edc-demo-app:v0.2.3 # {"$imagepolicy": "flux-system:edc-demo-app"}
+        image: ghcr.io/hkassaei/edc-demo-app:v0.2.7 # {"$imagepolicy": "flux-system:edc-demo-app"}
         ports:
         - containerPort: 8080
         env:
@@ -72,17 +72,3 @@ spec:
             # [END cloud_sql_proxy_k8s_container]
       imagePullSecrets:
       - name: ghcr-creds
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: edc-demo-app-service
-  namespace: default
-spec:
-  selector:
-    app.kubernetes.io/name: edc-demo
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: LoadBalancer

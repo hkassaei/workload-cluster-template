@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edc-demo-app-service
+  namespace: default
+spec:
+  selector:
+    app.kubernetes.io/name: edc-demo
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: NodePort
+
+# Attempt to use type: ClusterIP failed with the following error:
+
+# Translation failed: invalid ingress spec: service "default/edc-demo-app-service" 
+# is type "ClusterIP", expected "NodePort" or "LoadBalancer"
+
+# How to set up GKE container native (VPC native) networking: 
+# https://medium.com/google-cloud/container-load-balancing-on-google-kubernetes-engine-gke-4cbfaa80a6f6
