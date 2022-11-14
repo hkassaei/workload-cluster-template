@@ -40,34 +40,39 @@ func initDB(dbConnection string) error {
 func createDatabase(dbName string) error {
 	var name string
 	err := db.QueryRow("select datname from pg_catalog.pg_database where datname=$1", dbName).Scan(&name)
-	if err != nil {
-		return err
+	switch {
+	case err == sql.ErrNoRows:
+		log.Printf("database with name %s does not exists, creating ...\n", dbName)
+		if _, err := db.Exec("create database " + dbName); err != nil {
+			return err
+		}
+		log.Printf("create database %s\n", dbName)
+	case err != nil:
+		log.Printf("querry error: %v\n", err)
+	default:
+		log.Printf("database with name %s already exists", dbName)
 
-	} else if name == dbName {
-		fmt.Printf("database %s already exists, skipping creation.\n", name)
-		return nil
 	}
 
-	if _, err := db.Exec("create database " + dbName); err != nil {
-		return err
-	}
 	return nil
 }
 
 func createTable(tableName string) error {
 	var name string
 	err := db.QueryRow("select table_name from information_schema.tables where table_name=$1", tableName).Scan(&name)
-	if err != nil {
-		return err
-
-	} else if name == tableName {
-		fmt.Printf("table %s already exists, skipping creation.\n", tableName)
-		return nil
+	switch {
+	case err == sql.ErrNoRows:
+		log.Printf("table with name %s does not exist, creating ...\n", tableName)
+		if _, err := db.Exec(`create table shortened_urls (	id text primary key, url text not null)`); err != nil {
+			return err
+		}
+		log.Printf("create table %s\n", tableName)
+	case err != nil:
+		log.Printf("querry error: %v", err)
+	default:
+		log.Printf("table %s already exists.\n", tableName)
 	}
 
-	if _, err := db.Exec(`create table shortened_urls (	id text primary key, url text not null)`); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -84,7 +89,7 @@ func renderJSON(w http.ResponseWriter, v interface{}) {
 
 func getVersion(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Getting version\n")
-	version := "0.2.7"
+	version := "0.2.8"
 	renderJSON(w, version)
 }
 

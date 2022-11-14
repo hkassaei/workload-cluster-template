@@ -1,5 +1,7 @@
 #!/bin/bash
-cp ../application/blueprint/kustomization.yaml ../application/deployment
-cp ../application/blueprint/edc-demo-app.yaml ../application/deployment
-cp ../application/blueprint/service_account.yaml ../application/deployment
-cp ../application/blueprint/gcp-cloudsql-single-claim.yaml ../application/deployment
+cp ../application/blueprint/kustomization.yaml \
+   ../application/blueprint/app-deployment.yaml \
+   ../application/blueprint/service_account.yaml \
+   ../application/blueprint/ingress.yaml \
+   ../application/blueprint/service.yaml \
+   ../application/blueprint/gcp-cloudsql-claim.yaml ../application/deployment
