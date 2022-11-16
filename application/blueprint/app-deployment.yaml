@@ -18,7 +18,7 @@ spec:
       serviceAccountName: edc-demo-app-sa
       containers:
       - name: edc-demo-app
-        image: ghcr.io/hkassaei/edc-demo-app:v0.2.7 # {"$imagepolicy": "flux-system:edc-demo-app"}
+        image: ghcr.io/hkassaei/edc-demo-app:v0.2.8 # {"$imagepolicy": "flux-system:edc-demo-app"}
         ports:
         - containerPort: 8080
         env:
