@@ -1,8 +1,10 @@
 # Crossplane + Flux + App using CloudSQL  
-This demo shows how to use Crossplane and Flux to automate the provisioning of 
-cloud infrastructure resources at scale, and by using GitOps principles.
-On high level, the solution relies on a management cluster that can be used to bootstrap
-and monitor the status of other workload clusters, where the applications/workloads
+This repository is part (the workload cluster part) of a demo that shows how to use
+Crossplane and Flux to automate the provisioning of cloud infrastructure resources at scale,
+and by using GitOps principles.
+
+On high level, the solution relies on a 'management cluster' that can be used to bootstrap
+and monitor the status of other 'workload clusters', where the applications/workloads
 are deployed.
 
 By design, there was a goal to  not create too much dependency from workload clusters 
@@ -55,81 +57,13 @@ to be able run the demo.
       * Note that the application has a dependency to CloudSQL, which triggers 
         the instantiation of a CloudSQL instance.
 
-## Bootstrap Flux in the management cluster
-Once you have brough up the management cluster, whether on your local machine or 
-in a cloud environment, bootstrap flux on it:
-
-```
-GITHUB_USERNAME=<your github username>
-GITHUB_PAT=<your GitHub Personal Access Token>
-
-flux bootstrap github \
-  --owner=${GITHUB_USERNAME} \
-  --repository=edc-demo \
-  --branch=main \
-  --path=./management-cluster \
-  --personal
-```
-## Create a sops secret for decrypting secret in the cluster
-Make sure you have already created your own GPG key following [these instructions](https://fluxcd.io/flux/guides/mozilla-sops/)
-
-Flux Kustomize controller has built-in support for SOPS and given the configuration,
-it can decrypt the encrypted credentials and populate the secret that Crossplane
-GCP provider needs in order to access GCP APIs. 
-
-Regarding the configuration that Flux needs, look under `/infra-blueprints/deployment-artifacts/secrets` directory.
-
-Flux also needs the encryption key to be able decrypt the credentials stored
-in the git repo. To provide it with the key, do the following:
-
-```
-gpg --list-secret-keys crossplane-gcp-provider-creds  
-# this command prints the key's fingerprint (key fp):
-#   sec   rsa4096 2020-09-06 [SC]
-#       1F3D1CED2F865F5E59CA564553241F147E7C5FA4
-
-export KEY_FP=1F3D1CED2F865F5E59CA564553241F147E7C5FA4
-
-# which we use in the following command:
-gpg --export-secret-keys --armor "${KEY_FP}"  | kubectl create secret generic sops-gpg --namespace=flux-system --from-file=sops.asc=/dev/stdin
-```
-## Instruct Flux to deploy Crossplane and related artifacts
-All the setup has already been taken care of in the repo under
-`/infra-blurprints/crossplane` and `/infra-blueprints/deployment-artifacts`. All you 
-need to do is to point flux to the prepare kustomizations by copying
-a prepared crossplane.yaml from `/utils/sync-crossplane` to the `/management-cluster` directory:
-```
-cp /utils/sync-crossplane/crossplane.yaml /management-cluster
-```
-
-In addition, set up the flux controller in the management-cluster to sync the changes
-under the workload clusters (mainly the claims for new workload clusters)
-```
-cp /utils/sync-workload-clusters/workload-clusters.yaml /management-cluster
-``` 
-and commit the file to the git repository.
-
-## Bootstrap a workload cluster
-With Flux and Crossplane deployed and configured, the management cluster
-is ready to bootstrap workload clusters.
-
-To create the first workload-cluster, simply copy a cluster claim template
-from `utils/claim-templates` to `/workload-clusters` directory, and modify if needed.
-
-```
-cp /utils/claim-templates/workload-cluster-1.yaml /workload-clusters
-```
-and commit the file to the git repository. 
-
-After around a minute, you should see that a new gke cluster is being created.
+## Set up the management cluster
+Make sure to follow the instructions in the management cluster repository to set up the management cluster
+before following the steps below.
 
 ## Set up the workload cluster
 We need to connect the new workload cluster that was created in the previous step
-to a git repo. There are various ways to do this. For example, we can create a
-new git repository and bootstrap a flux controller with that repo. We then need
-to copy over some of the blueprints to that repository for reuse. Alternative,
-we can just create a new directory in this same git repo and connect it to the
-new cluster. In this demo, we do the latter.
+to a git repo.
 
 Make sure you create a directory that matches the name of the workload cluster
 that you set in the cluster claim. This makes it easier to track clusters and repos.
@@ -164,43 +98,13 @@ export KEY_FP=1F3D1CED2F865F5E59CA564553241F147E7C5FA4
 # which we use in the following command:
 gpg --export-secret-keys --armor "${KEY_FP}"  | kubectl create secret generic sops-gpg --namespace=flux-system --from-file=sops.asc=/dev/stdin
 ```
-And to have flux deploy Crossplane and its related artifacts:
-```
-cp ./utils/sync-crossplane/crossplane.yaml ./workload-clusters/workload-cluster-1
-```
-and finally commit the changes to the repo.
 
 ## Deploy a sample application with dependency to CloudSQL
-Prerequisite: You have created an IAM service account with that is bound to a role
-that allows it to create and access CloudSQL databases. An example of how to do this:
-```
-export PROJECT_ID=$(gcloud config list --format 'value(core.project)')
-export CLOUDSQL_SERVICE_ACCOUNT=cloudsql-service-account
-gcloud iam service-accounts create $CLOUDSQL_SERVICE_ACCOUNT --project=$PROJECT_ID
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:$CLOUDSQL_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com"  \
-    --role="roles/cloudsql.admin"
-```
+Copy the files listed in ./application/blueprint/kustomization.yaml along with the kustomization.yaml 
+file itself to ./application/deployment directory and push the changes to the remote git repository.
+
+TODO:  store the application container image in a public repository
+
 ### Enable workload identity on the gke cluster
-[Workload identity](https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine#workload-identity) binds a Kubernetes Service Account (KSA) to a Google Service Account (GSA) enabling any workload (e.g. modeled as a Kubernetes Deployment)
-with that KSA to authenticate as the GSA in their interaction with Google Cloud.
-
-To enable workload identity (not needed if using autopilot since in that case wi is enabled by default):
-```
-gcloud container clusters update workload-cluster-1 --zone=us-central1-a --workload-pool=gcprdpscdpochcppaasdev01-c304.svc.id.goog
-```
-
-```
-cp ./utils/sync-app/app.yaml ./workload-clusters/workload-cluster-1
-```
-Once Crossplane gcp provider succeeds in instantiating a CloudSQL instance, it stores 
-the connection data in a `db-conn-cloudsql` secret. The data field of the secret
-conatins the endpoint (IP address), username, password, and port number.
-
-## Clean up
-  *  Delete the claim for CloudSQL to trigger Crossplane to stop CloudSQL instance
-     * what's the best way to do this? Remove the claim from kustomization file
-       under /app-blueprints/app1? Seems more natural to not touch the blueprints and 
-       only remove something from workload-cluster-1 directory.
-  *  Once the removal of CloudSQL is finished, remove the workload cluster by deleting
-     the workload-cluster-1 claim from the workload-clusters directoy.
+The Crossplane Kubernetes composition that implements the creation of the gke cluster configures 
+workload identity, so no manual step is needed here.
