@@ -120,3 +120,9 @@ All these 3 controllers are automatically deployed as part of bootstrapping the 
 kubectl port-forward svc/ww-gitops-weave-gitops -n flux-system 9001:9001
 ```
 user/pass for the GUI are set up in `./cluster/weave-gitops-dashboard.yaml`
+
+## Backlog
+* replace gcp crossplane provider with [gcp official provider](https://blog.upbound.io/first-official-providers/)
+* Look into storing gcp provider credentials in GCP Cloud Key Management. Basically similar idea to [this](https://crossplane.io/docs/v1.10/guides/vault-as-secret-store.html) but using GCP KM instead of vault.
+* Add cert-manager and its gcp provider. Obtain a certificate from [CAS](https://cloud.google.com/certificate-authority-service) to secure all traffic. The main point is more to 
+showcase provisioning of additional resources using Crossplane.
