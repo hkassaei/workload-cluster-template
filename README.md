@@ -98,6 +98,9 @@ export KEY_FP=1F3D1CED2F865F5E59CA564553241F147E7C5FA4
 # which we use in the following command:
 gpg --export-secret-keys --armor "${KEY_FP}"  | kubectl create secret generic sops-gpg --namespace=flux-system --from-file=sops.asc=/dev/stdin
 ```
+### Enable workload identity on the gke cluster
+The Crossplane Kubernetes composition that implements the creation of the gke cluster configures 
+workload identity, so no manual step is needed here.
 
 ## Deploy a sample application with dependency to CloudSQL
 Copy the files listed in ./application/blueprint/kustomization.yaml along with the kustomization.yaml 
@@ -105,6 +108,15 @@ file itself to ./application/deployment directory and push the changes to the re
 
 TODO:  store the application container image in a public repository
 
-### Enable workload identity on the gke cluster
-The Crossplane Kubernetes composition that implements the creation of the gke cluster configures 
-workload identity, so no manual step is needed here.
+## Additional Flux controllers
+In the sample application, a URL shortner based on [url_shortner](https://github.com/jackc/pgx/tree/master/examples/url_shortener), we use two 
+additional Flux controllers to more easily and automatically update application deployment whenever a new image is built.
+These two controllers are called Image Reflector and Image Automation Controller and are described [here](https://fluxcd.io/flux/components/image/)
+
+Also, we use weave [gitops controller](https://docs.gitops.weave.works/docs/getting-started/index.html) for the GUI.
+
+All these 3 controllers are automatically deployed as part of bootstrapping the workload cluster. To launch the GUI, run:
+```
+kubectl port-forward svc/ww-gitops-weave-gitops -n flux-system 9001:9001
+```
+user/pass for the GUI are set up in `./cluster/weave-gitops-dashboard.yaml`
