@@ -35,25 +35,16 @@ to be able run the demo.
     [Personal Access Token (PAT)](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) before starting the demo.
 
 ### Steps
-  0. Install all the prerequisites tools on your machine.
-  1. Follow [these instructions](https://fluxcd.io/flux/guides/mozilla-sops/) to encrypt your GCP credentials before storing them in the git repo.
-  2. Bootstrap Flux in the management cluster.
-  3. Create a secret to provide Flux with the key for decrypting GCP credentials in the cluster.
-  4. Instruct Flux to deploy Crossplane, Crossplane GCP provider, and all the
-     needed configurations and XRDs in the management cluster.
-  5. Submit a claim for a gke cluster to the management cluster.
-  6. Wait for the workload (GKE) cluster to be in ready state.
+  0. Follow [the instructions in the management repo](https://github.com/hkassaei/management-cluster) to create the management cluster and also create a workload (GKE) cluster.
+  1. Wait for the workload (GKE) cluster to be in ready state.
         * Run `gcloud container clusters get-credentials CLUSTER_NAME --region=REGION_NAME`
           to fetch the kubeconfig for the GKE cluster.
-  7. Create a deployment repository for the workload cluster.
-  8. Bootsrap Flux on the workload cluster.
+  2. Create a deployment git repository for the workload cluster using this workload-template repository. Make sure you give the deployment repository the same name that you assigned to the workload cluster.
+  3. Bootsrap Flux in the workload cluster.
         * make sure to first switch kubeconfig context to the gke cluster.
-  9. Create a secret for sops to provide Flux with the key for decrypting GCP credentials in the cluster.
+  4. Create a secret for sops to provide Flux with the key for decrypting GCP credentials in the cluster.
         * Basically, the same step as 3 but for the workload cluster.
-  10. Instruct Flux to deploy Crossplane, Crossplane GCP provider, and all the
-      needed configurations and XRDs in the management cluster.
-        * Basically, the same step as 4 but for the workload cluster.
-  11. Instruct Flux to deploy the application to the workload cluster.
+  5. Instruct Flux to deploy the application to the workload cluster.
       * Note that the application has a dependency to CloudSQL, which triggers 
         the instantiation of a CloudSQL instance.
 
